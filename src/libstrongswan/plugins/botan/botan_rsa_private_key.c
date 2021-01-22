@@ -369,7 +369,7 @@ botan_rsa_private_key_t *botan_rsa_private_key_gen(key_type_t type,
 		return NULL;
 	}
 
-	if (botan_rng_init(&rng, "system"))
+	if (!botan_get_rng(&rng, RNG_TRUE))
 	{
 		return NULL;
 	}
@@ -397,7 +397,7 @@ static bool calculate_pq(botan_mp_t *n, botan_mp_t *e, botan_mp_t *d,
 {
 	botan_mp_t k = NULL, one = NULL, r = NULL, zero = NULL, two = NULL;
 	botan_mp_t n1 = NULL, x = NULL, y = NULL, g = NULL, rem = NULL;
-	botan_rng_t rng = NULL;
+	botan_rng_t rng;
 	int i, t, j;
 	bool success = FALSE;
 
@@ -448,7 +448,7 @@ static bool calculate_pq(botan_mp_t *n, botan_mp_t *e, botan_mp_t *d,
 		goto error;
 	}
 
-	if (botan_rng_init(&rng, "user"))
+	if (!botan_get_rng(&rng, RNG_STRONG))
 	{
 		goto error;
 	}

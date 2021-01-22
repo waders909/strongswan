@@ -238,7 +238,7 @@ bool botan_get_signature(botan_privkey_t key, const char *scheme,
 		return FALSE;
 	}
 
-	if (botan_rng_init(&rng, "user"))
+	if (!botan_get_rng(&rng, RNG_STRONG))
 	{
 		botan_pk_op_sign_destroy(sign_op);
 		return FALSE;
@@ -344,4 +344,57 @@ const char *botan_map_rng_quality(rng_quality_t quality)
 			return NULL;
 	}
 	return rng_name;
+}
+
+int strongswan_get_random(rng_t *rng, uint8_t *out, size_t out_len)
+{
+	if (!rng->get_bytes(rng, out_len, out))
+	{
+		return -1;
+	}
+	return 0;
+}
+
+void botan_destroy_rng(rng_t *rng)
+{
+	if(rng)
+	{
+		rng->destroy(rng);
+	}
+}
+
+bool botan_get_rng(botan_rng_t *botan_rng, rng_quality_t quality)
+{
+#ifdef HAVE_BOTAN_RNG_INIT_CUSTOM
+	if (lib->settings->get_bool(lib->settings,
+			"%s.plugins.botan.use_rng", FALSE, lib->ns))
+	{
+		if (botan_rng_init(botan_rng, botan_map_rng_quality(quality)))
+		{
+			return FALSE;
+		}
+	}
+	else
+	{
+		rng_t* rng = lib->crypto->create_rng(lib->crypto, quality);
+		if (!rng)
+		{
+			DBG1(DBG_LIB, "no RNG found for quality %N", rng_quality_names,
+				quality);
+			return FALSE;
+		}
+
+		if (botan_rng_init_custom(botan_rng, "strongswan", rng, strongswan_get_random, NULL, botan_destroy_rng))
+		{
+			DBG1(DBG_LIB, "Botan RNG creation failed");
+			return FALSE;
+		}
+	}
+#else
+	if (botan_rng_init(botan_rng, botan_map_rng_quality(quality)))
+	{
+		return FALSE;
+	}
+#endif
+	return TRUE;
 }
