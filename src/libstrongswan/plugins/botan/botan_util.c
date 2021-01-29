@@ -346,7 +346,10 @@ const char *botan_map_rng_quality(rng_quality_t quality)
 	return rng_name;
 }
 
-int strongswan_get_random(rng_t *rng, uint8_t *out, size_t out_len)
+#ifdef HAVE_BOTAN_RNG_INIT_CUSTOM
+
+CALLBACK(get_random, int,
+	rng_t *rng, uint8_t *out, size_t out_len)
 {
 	if (!rng->get_bytes(rng, out_len, out))
 	{
@@ -355,46 +358,50 @@ int strongswan_get_random(rng_t *rng, uint8_t *out, size_t out_len)
 	return 0;
 }
 
-void botan_destroy_rng(rng_t *rng)
+CALLBACK(destroy_rng, void,
+	rng_t *rng)
 {
-	if(rng)
+	if (rng)
 	{
 		rng->destroy(rng);
 	}
 }
 
+#endif /* HAVE_BOTAN_RNG_INIT_CUSTOM */
+
+/*
+ * Described in header
+ */
 bool botan_get_rng(botan_rng_t *botan_rng, rng_quality_t quality)
 {
 #ifdef HAVE_BOTAN_RNG_INIT_CUSTOM
-	if (lib->settings->get_bool(lib->settings,
-			"%s.plugins.botan.use_rng", FALSE, lib->ns))
+	if (!lib->settings->get_bool(lib->settings,
+						"%s.plugins.botan.internal_rng_only", FALSE, lib->ns))
 	{
-		if (botan_rng_init(botan_rng, botan_map_rng_quality(quality)))
-		{
-			return FALSE;
-		}
-	}
-	else
-	{
-		rng_t* rng = lib->crypto->create_rng(lib->crypto, quality);
+		rng_t *rng = lib->crypto->create_rng(lib->crypto, quality);
+
 		if (!rng)
 		{
 			DBG1(DBG_LIB, "no RNG found for quality %N", rng_quality_names,
-				quality);
+				 quality);
 			return FALSE;
 		}
-
-		if (botan_rng_init_custom(botan_rng, "strongswan", rng, strongswan_get_random, NULL, botan_destroy_rng))
+		if (botan_rng_init_custom(botan_rng, "strongswan", rng,
+								  get_random, NULL, destroy_rng))
 		{
 			DBG1(DBG_LIB, "Botan RNG creation failed");
 			return FALSE;
 		}
 	}
-#else
-	if (botan_rng_init(botan_rng, botan_map_rng_quality(quality)))
+	else
+#endif /* HAVE_BOTAN_RNG_INIT_CUSTOM */
 	{
-		return FALSE;
+		const char *rng_name = botan_map_rng_quality(quality);
+
+		if (!rng_name || botan_rng_init(botan_rng, rng_name))
+		{
+			return FALSE;
+		}
 	}
-#endif
 	return TRUE;
 }

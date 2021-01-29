@@ -397,7 +397,7 @@ static bool calculate_pq(botan_mp_t *n, botan_mp_t *e, botan_mp_t *d,
 {
 	botan_mp_t k = NULL, one = NULL, r = NULL, zero = NULL, two = NULL;
 	botan_mp_t n1 = NULL, x = NULL, y = NULL, g = NULL, rem = NULL;
-	botan_rng_t rng;
+	botan_rng_t rng = NULL;
 	int i, t, j;
 	bool success = FALSE;
 
